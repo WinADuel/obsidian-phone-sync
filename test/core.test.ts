@@ -133,7 +133,7 @@ test("later pulls follow GitHub, keep phone edits, and make conflict copies", as
   assert.deepEqual(r.downloaded, ["a.md", "e.md"]);
   assert.deepEqual(r.deleted, ["d.md"]);
   assert.deepEqual(r.pendingPush, ["b.md", "new-on-phone.md"]);
-  assert.deepEqual(r.conflicts, [{ path: "c.md", copy: "c (GitHub conflict 2026-10-14).md" }]);
+  assert.deepEqual(r.conflicts.map((c) => [c.path, c.copy]), [["c.md", "c (GitHub conflict 2026-10-14).md"]]);
   assert.equal(fs.get("a.md"), "desktop edit");
   assert.equal(fs.get("b.md"), "phone edit");
   assert.equal(fs.get("c.md"), "phone edit");

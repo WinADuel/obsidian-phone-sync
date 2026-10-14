@@ -6,7 +6,21 @@ export interface RemoteFile {
   path: string;
   sha: string;
   size: number;
+  /** Git file mode, e.g. "100644" or "100755" for executables. */
+  mode: string;
 }
+
+/** One file to change in a push: new contents, or null to delete it. */
+export interface PushChange {
+  path: string;
+  mode: string;
+  data: ArrayBuffer | null;
+}
+
+export type PushResult =
+  | { ok: true; commitSha: string }
+  /** The branch moved since `parentCommit` (a desktop pushed); pull again and retry. */
+  | { ok: false; reason: "moved" };
 
 /** A file on the phone, before hashing. */
 export interface LocalFileStat {
@@ -23,6 +37,8 @@ export interface Remote {
   listFiles(treeSha: string): Promise<RemoteFile[]>;
   /** Raw bytes of one blob. */
   readBlob(sha: string): Promise<ArrayBuffer>;
+  /** Commit `changes` on top of `parentCommit` and move the branch to it, never forcing. */
+  push(parentCommit: string, parentTree: string, changes: PushChange[], message: string): Promise<PushResult>;
 }
 
 /** The vault on this device. Paths are vault-relative with "/" separators. */
