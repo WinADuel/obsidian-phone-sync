@@ -41,6 +41,6 @@ npm test        # unit tests
 VAULT_REPO=/path/to/vault/checkout npm test   # also pulls a real vault into a temp folder
 ```
 
-Push a tag such as `0.1.0` (matching `manifest.json`) to publish a release that BRAT installs.
+To publish a release that BRAT installs, bump the version in `manifest.json` and `versions.json`, then run the **Release** workflow from the Actions tab. It tags the release with that version.
 
 The sync logic in `src/core` has no Obsidian imports and is tested in Node with in-memory fakes. `src/github.ts` and `src/obsidianFs.ts` connect it to GitHub and the vault.
