@@ -1,5 +1,5 @@
 import { gitBlobSha } from "../src/core/hash.ts";
-import type { LocalFileStat, LocalFs, Remote, RemoteFile } from "../src/core/types.ts";
+import type { LocalFileStat, LocalFs, PushChange, PushResult, Remote, RemoteFile } from "../src/core/types.ts";
 
 export const bytes = (s: string): ArrayBuffer => new TextEncoder().encode(s).buffer as ArrayBuffer;
 export const text = (b: ArrayBuffer): string => new TextDecoder().decode(b);
@@ -8,12 +8,35 @@ export const text = (b: ArrayBuffer): string => new TextDecoder().decode(b);
 export class FakeRemote implements Remote {
   files = new Map<string, string>();
   blobs = new Map<string, ArrayBuffer>();
+  modes = new Map<string, string>();
   commits = 0;
   failBlob = new Set<string>();
+  pushes: { message: string; changes: string[] }[] = [];
+  /** Runs once just before the next push lands, e.g. to simulate a desktop pushing first. */
+  beforeNextPush?: () => Promise<void>;
 
   async set(files: Record<string, string>): Promise<void> {
     this.files = new Map(Object.entries(files));
     this.commits++;
+  }
+
+  snapshot(): Record<string, string> {
+    return Object.fromEntries(this.files);
+  }
+
+  async push(parentCommit: string, _tree: string, changes: PushChange[], message: string): Promise<PushResult> {
+    const hook = this.beforeNextPush;
+    this.beforeNextPush = undefined;
+    if (hook) await hook();
+    if (parentCommit !== `commit${this.commits}`) return { ok: false, reason: "moved" };
+    for (const c of changes) {
+      if (c.data === null) this.files.delete(c.path);
+      else this.files.set(c.path, text(c.data));
+      this.modes.set(c.path, c.mode);
+    }
+    this.commits++;
+    this.pushes.push({ message, changes: changes.map((c) => c.path).sort() });
+    return { ok: true, commitSha: `commit${this.commits}` };
   }
 
   async head() {
@@ -26,7 +49,7 @@ export class FakeRemote implements Remote {
       const data = bytes(body);
       const sha = await gitBlobSha(data);
       this.blobs.set(sha, data);
-      out.push({ path, sha, size: data.byteLength });
+      out.push({ path, sha, size: data.byteLength, mode: this.modes.get(path) ?? "100644" });
     }
     return out;
   }
