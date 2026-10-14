@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-phone-sync",
+  "version": "0.1.0",
+  "description": "Sync an Obsidian vault on iPhone with a GitHub repo through the GitHub API, alongside Obsidian Git on desktop.",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc --noEmit && node esbuild.config.mjs production",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "0.28.2",
+    "obsidian": "1.14.4",
+    "typescript": "5.9.3"
+  }
+}
