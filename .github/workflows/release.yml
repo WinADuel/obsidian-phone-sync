@@ -1,8 +1,8 @@
-# Push a tag like 0.1.0 to publish a release that BRAT can install on the iPhone.
+# Publishes a release that BRAT can install on the iPhone, tagged with the
+# version in manifest.json. Run it from the Actions tab ("Run workflow").
 name: Release
 on:
-  push:
-    tags: ["*"]
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -19,4 +19,6 @@ jobs:
       - run: npm test
       - env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" main.js manifest.json --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          version=$(node -p "require('./manifest.json').version")
+          gh release create "$version" main.js manifest.json --target "$GITHUB_SHA" --title "$version" --generate-notes
