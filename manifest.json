@@ -1,7 +1,7 @@
 {
   "id": "obsidian-phone-sync",
   "name": "Phone Sync",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minAppVersion": "1.11.4",
   "description": "Sync your vault on iPhone with a GitHub repo through the GitHub API, alongside Obsidian Git on desktop.",
   "author": "Daniel Wu",
