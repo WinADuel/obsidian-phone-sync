@@ -14,18 +14,21 @@ export class GitHubRemote implements Remote {
   ) {}
 
   async head(): Promise<{ commitSha: string; treeSha: string }> {
-    const ref = await this.json(`/git/ref/heads/${encodeURIComponent(this.branch)}`);
-    const commitSha: string = ref.object.sha;
-    const commit = await this.json(`/git/commits/${commitSha}`);
+    const ref = await this.json<{ object: { sha: string } }>(`/git/ref/heads/${encodeURIComponent(this.branch)}`);
+    const commitSha = ref.object.sha;
+    const commit = await this.json<{ tree: { sha: string } }>(`/git/commits/${commitSha}`);
     return { commitSha, treeSha: commit.tree.sha };
   }
 
   async listFiles(treeSha: string): Promise<RemoteFile[]> {
-    const tree = await this.json(`/git/trees/${treeSha}?recursive=1`);
+    const tree = await this.json<{
+      truncated: boolean;
+      tree: { path: string; type: string; sha: string; size?: number; mode: string }[];
+    }>(`/git/trees/${treeSha}?recursive=1`);
     if (tree.truncated) {
       throw new Error("GitHub returned a truncated file list; the repo has too many files for one request.");
     }
-    return (tree.tree as { path: string; type: string; sha: string; size?: number; mode: string }[])
+    return tree.tree
       .filter((e) => e.type === "blob")
       .map((e) => ({ path: e.path, sha: e.sha, size: e.size ?? 0, mode: e.mode }));
   }
@@ -39,7 +42,7 @@ export class GitHubRemote implements Remote {
           let sha: string | null = null;
           if (c.data) {
             const blob = await this.send("POST", "/git/blobs", { content: toBase64(c.data), encoding: "base64" });
-            sha = blob.json.sha;
+            sha = shaOf(blob);
           }
           entries.push({ path: c.path, mode: c.mode, type: "blob", sha });
         }
@@ -48,18 +51,18 @@ export class GitHubRemote implements Remote {
     const tree = await this.send("POST", "/git/trees", { base_tree: parentTree, tree: entries });
     const commit = await this.send("POST", "/git/commits", {
       message,
-      tree: tree.json.sha,
+      tree: shaOf(tree),
       parents: [parentCommit],
     });
     const ref = await this.send(
       "PATCH",
       `/git/refs/heads/${encodeURIComponent(this.branch)}`,
-      { sha: commit.json.sha, force: false },
+      { sha: shaOf(commit), force: false },
       [422],
     );
     // 422 "Update is not a fast forward": someone pushed since we pulled.
     if (ref.status === 422) return { ok: false, reason: "moved" };
-    return { ok: true, commitSha: commit.json.sha };
+    return { ok: true, commitSha: shaOf(commit) };
   }
 
   async readBlob(sha: string): Promise<ArrayBuffer> {
@@ -69,12 +72,12 @@ export class GitHubRemote implements Remote {
 
   /** Cheap call used by the settings tab to check the token and repo. */
   async check(): Promise<string> {
-    const repo = await this.json("");
+    const repo = await this.json<{ full_name: string; private: boolean }>("");
     return `Connected to ${repo.full_name} (${repo.private ? "private" : "public"}).`;
   }
 
-  private async json(path: string): Promise<any> {
-    return (await this.request(path, "application/vnd.github+json")).json;
+  private async json<T>(path: string): Promise<T> {
+    return (await this.request(path, "application/vnd.github+json")).json as T;
   }
 
   private send(method: string, path: string, body: unknown, allow: number[] = []): Promise<RequestUrlResponse> {
@@ -102,7 +105,7 @@ export class GitHubRemote implements Remote {
     if (res.status >= 400 && !allow.includes(res.status)) {
       let detail = "";
       try {
-        detail = res.json?.message ?? "";
+        detail = (res.json as { message?: string } | undefined)?.message ?? "";
       } catch {
         // body was not JSON
       }
@@ -114,6 +117,10 @@ export class GitHubRemote implements Remote {
     }
     return res;
   }
+}
+
+function shaOf(res: RequestUrlResponse): string {
+  return (res.json as { sha: string }).sha;
 }
 
 function toBase64(data: ArrayBuffer): string {

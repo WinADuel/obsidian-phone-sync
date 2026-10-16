@@ -6,6 +6,8 @@ import type { LocalFs, Remote, SyncState } from "./types.ts";
 
 export interface PullOptions {
   filter: PathFilter;
+  /** The vault's config folder, usually `.obsidian`. */
+  configDir: string;
   /** Files larger than this many bytes are skipped on both sides. */
   maxFileBytes: number;
   /** Stop instead of deleting when one pull would delete more files than this. */
@@ -113,7 +115,7 @@ export async function pull(
 
   const firstPull = state.commit === null;
   if (opts.dryRun || report.blocked) {
-    for (const a of plan.actions) recordPlanned(report, a, firstPull, base[a.path] !== undefined);
+    for (const a of plan.actions) recordPlanned(report, a, firstPull, base[a.path] !== undefined, opts.configDir);
     return report;
   }
 
@@ -143,7 +145,7 @@ export async function pull(
           break;
         case "conflict": {
           const theirs = await remote.readBlob(a.sha);
-          const how = conflictStrategy(a.path, firstPull, base[a.path] !== undefined);
+          const how = conflictStrategy(a.path, firstPull, base[a.path] !== undefined, opts.configDir);
           // If the base version can't be fetched, fall back to a conflict copy.
           const baseData = how === "merge3" ? await remote.readBlob(base[a.path]).catch(() => null) : null;
           const merged3 = baseData ? mergeText(baseData, await fs.read(a.path), theirs) : null;
@@ -217,12 +219,18 @@ export async function pull(
   return report;
 }
 
-function recordPlanned(report: PullReport, a: PullAction, firstPull: boolean, hasBase: boolean): void {
+function recordPlanned(
+  report: PullReport,
+  a: PullAction,
+  firstPull: boolean,
+  hasBase: boolean,
+  configDir: string,
+): void {
   if (a.kind === "download") report.downloaded.push(a.path);
   else if (a.kind === "delete") report.deleted.push(a.path);
   else if (a.kind === "pendingPush") report.pendingPush.push(a.path);
   else {
-    const how = conflictStrategy(a.path, firstPull, hasBase);
+    const how = conflictStrategy(a.path, firstPull, hasBase, configDir);
     if (how === "mergeList") report.merged.push(a.path);
     else if (how === "takeRemote") report.replaced.push(a.path);
     else if (how === "merge3") report.merged.push(`${a.path} (if the edits do not overlap)`);
@@ -230,12 +238,10 @@ function recordPlanned(report: PullReport, a: PullAction, firstPull: boolean, ha
   }
 }
 
-const PLUGIN_LIST = ".obsidian/community-plugins.json";
-
 /**
  * How to settle a file changed on both sides.
  * - The enabled-plugins list is merged, so neither side's plugins get switched off.
- * - On the first pull, the phone's .obsidian files are just a new vault's defaults,
+ * - On the first pull, the phone's config folder files are just a new vault's defaults,
  *   so GitHub's settings win and the phone's go to the trash.
  * - Notes are merged line by line against the last synced version, as git does;
  *   if the edits overlap, they fall back to a conflict copy.
@@ -245,9 +251,10 @@ export function conflictStrategy(
   path: string,
   firstPull: boolean,
   hasBase: boolean,
+  configDir: string,
 ): "mergeList" | "takeRemote" | "merge3" | "copy" {
-  if (path === PLUGIN_LIST) return "mergeList";
-  if (firstPull && path.startsWith(".obsidian/")) return "takeRemote";
+  if (path === `${configDir}/community-plugins.json`) return "mergeList";
+  if (firstPull && path.startsWith(`${configDir}/`)) return "takeRemote";
   if (hasBase && path.endsWith(".md")) return "merge3";
   return "copy";
 }
@@ -264,6 +271,8 @@ export function mergeJsonLists(ours: ArrayBuffer, theirs: ArrayBuffer): ArrayBuf
   const a = parse(theirs);
   const b = parse(ours);
   if (!Array.isArray(a) || !Array.isArray(b)) return theirs;
-  const merged = [...a, ...b.filter((x) => !a.includes(x))];
-  return new TextEncoder().encode(JSON.stringify(merged, null, 2)).buffer as ArrayBuffer;
+  const theirsList: unknown[] = a;
+  const oursList: unknown[] = b;
+  const merged = [...theirsList, ...oursList.filter((x) => !theirsList.includes(x))];
+  return new TextEncoder().encode(JSON.stringify(merged, null, 2)).buffer;
 }

@@ -22,16 +22,29 @@ All plugins and settings in `.obsidian` sync. Left out by default (editable in s
 
 The plugin stays idle on desktop, since the desktops use Obsidian Git and the list of enabled plugins syncs between devices.
 
+## What it needs and what it connects to
+
+- **A GitHub account and a personal access token.** The plugin only works with a GitHub repo you own or can write to. The token is kept in Obsidian's secret storage on the device and is sent only to GitHub.
+- **Network use.** The plugin talks only to the GitHub REST API (`api.github.com`) to read and write your vault repo. It sends no telemetry and contacts no other service.
+- **No payment.** Everything is free. There are no paid features or ads.
+
 ## Install on iPhone
 
 1. Create a [fine-grained GitHub token](https://github.com/settings/personal-access-tokens/new) with access to only the vault repo and **Contents: Read and write**.
-2. In Obsidian on the iPhone, create a new empty vault. Turn off Restricted mode, then install **BRAT** from Community plugins.
-3. In BRAT's settings, paste a GitHub token that can read this plugin's repo (needed because it is private), then choose **Add beta plugin** and enter `WinADuel/obsidian-phone-sync`.
+2. In Obsidian on the iPhone, create a new empty vault and turn off Restricted mode.
+3. Install **Phone Sync** from Community plugins. Before it is listed there, install **BRAT**, choose **Add beta plugin** and enter `WinADuel/obsidian-phone-sync`.
 4. Enable **Phone Sync**, open its settings, paste the vault token, and tap **Check**.
 5. Tap the sync icon in the ribbon, or run **Sync with GitHub** from the command palette.
 6. Restart Obsidian to load the synced plugins. Obsidian Git will load too and may complain that the phone has no git repo: open its settings and turn on **Disable on this device**. That setting stays on the phone.
 
-On the first sync, the new vault's default `.obsidian` settings are replaced by your synced ones (the defaults go to `.trash`), and the list of enabled plugins is merged so BRAT and Phone Sync stay on. That merged list and BRAT itself are sent back, so the desktops list them too; Phone Sync stays idle there.
+On the first sync, the new vault's default `.obsidian` settings are replaced by your synced ones (the defaults go to `.trash`), and the list of enabled plugins is merged so Phone Sync (and BRAT, if you used it) stays on. That merged list and any plugins installed on the phone are sent back, so the desktops list them too; Phone Sync stays idle there.
+
+## Support
+
+Phone Sync is free and MIT licensed. If it saves you time:
+
+- [Buy me a coffee](BMC_URL)
+- I'm looking for internships and jobs. If you know of a role that fits, I'd love a referral: [Daniel Wu on LinkedIn](https://www.linkedin.com/in/daniel-wu-778308281)
 
 ## Development
 
@@ -42,6 +55,6 @@ npm test        # unit tests
 VAULT_REPO=/path/to/vault/checkout npm test   # also syncs a real vault with a temp phone folder and desktop clone
 ```
 
-To publish a release that BRAT installs, bump the version in `manifest.json` and `versions.json`, then run the **Release** workflow from the Actions tab. It tags the release with that version.
+To publish a release that BRAT installs, bump the version in `manifest.json`, `package.json` and `versions.json`, then run the **Release** workflow from the Actions tab. It tags the release with that version.
 
 The sync logic in `src/core` has no Obsidian imports and is tested in Node with in-memory fakes. `src/github.ts` and `src/obsidianFs.ts` connect it to GitHub and the vault.
