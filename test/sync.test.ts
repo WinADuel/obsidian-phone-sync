@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { DEFAULT_EXCLUDES, PathFilter } from "../src/core/filter.ts";
+import { defaultExcludes, PathFilter } from "../src/core/filter.ts";
 import { mergeText } from "../src/core/merge3.ts";
 import { sync, type SyncOptions } from "../src/core/sync.ts";
 import { emptyState, type SyncState } from "../src/core/types.ts";
@@ -12,7 +12,8 @@ function setup() {
   let state: SyncState = emptyState();
   const run = (o: Partial<SyncOptions> = {}) =>
     sync(remote, fs, state, {
-      filter: new PathFilter(DEFAULT_EXCLUDES),
+      filter: new PathFilter(defaultExcludes(".obsidian")),
+      configDir: ".obsidian",
       maxFileBytes: 1000,
       maxDeletes: 20,
       dryRun: false,

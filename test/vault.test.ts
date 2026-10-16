@@ -9,7 +9,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, statSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { DEFAULT_EXCLUDES, PathFilter } from "../src/core/filter.ts";
+import { defaultExcludes, PathFilter } from "../src/core/filter.ts";
 import { pull } from "../src/core/pull.ts";
 import { sync } from "../src/core/sync.ts";
 import { emptyState, type LocalFs, type Remote, type SyncState } from "../src/core/types.ts";
@@ -119,9 +119,10 @@ test("syncs a real vault with a phone folder and a desktop checkout", { skip: !s
   const phone = mkdtempSync(join(tmpdir(), "phone-"));
   const fs = dirFs(phone);
   let state: SyncState = emptyState();
-  const filter = new PathFilter(DEFAULT_EXCLUDES);
+  const filter = new PathFilter(defaultExcludes(".obsidian"));
   const opts = {
     filter,
+    configDir: ".obsidian",
     maxFileBytes: 25 * 1024 * 1024,
     maxDeletes: 20,
     dryRun: false,
