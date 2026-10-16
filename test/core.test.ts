@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { DEFAULT_EXCLUDES, PathFilter } from "../src/core/filter.ts";
+import { defaultExcludes, PathFilter } from "../src/core/filter.ts";
 import { gitBlobSha } from "../src/core/hash.ts";
 import { conflictCopyPath, planPull } from "../src/core/plan.ts";
 import { pull, type PullOptions } from "../src/core/pull.ts";
@@ -22,7 +22,7 @@ test("blob hash matches git hash-object", async () => {
 });
 
 test("default excludes", () => {
-  const f = new PathFilter(DEFAULT_EXCLUDES);
+  const f = new PathFilter(defaultExcludes(".obsidian"));
   for (const p of [
     ".DS_Store",
     "School/.DS_Store",
@@ -30,6 +30,7 @@ test("default excludes", () => {
     ".obsidian/workspace-mobile.json",
     ".smart-env/smart_env.json",
     ".copilot/model-catalog-cache.json",
+    ".obsidian/plugins/github-phone-sync/data.json",
     ".obsidian/plugins/obsidian-phone-sync/data.json",
     ".trash/old.md",
   ]) assert.ok(f.excludes(p), p);
@@ -42,7 +43,7 @@ test("default excludes", () => {
     "Personal/Vault/300 Books/House of Leaves.pdf",
   ]) assert.ok(!f.excludes(p), p);
   assert.ok(f.excludesDir(".git"));
-  assert.ok(f.excludesDir(".obsidian/plugins/obsidian-phone-sync"));
+  assert.ok(f.excludesDir(".obsidian/plugins/github-phone-sync"));
   assert.ok(!f.excludesDir(".obsidian/plugins"));
   assert.ok(new PathFilter("*.pdf").excludes("a/b.pdf"));
 });
@@ -81,7 +82,8 @@ function setup() {
   let state: SyncState = emptyState();
   const run = async (o: Partial<PullOptions> = {}) => {
     const report = await pull(remote, fs, state, {
-      filter: new PathFilter(DEFAULT_EXCLUDES),
+      filter: new PathFilter(defaultExcludes(".obsidian")),
+      configDir: ".obsidian",
       maxFileBytes: 1000,
       maxDeletes: 20,
       dryRun: false,

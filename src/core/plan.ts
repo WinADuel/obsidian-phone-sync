@@ -50,7 +50,7 @@ export function planPull(
     // Both changed since the last sync.
     if (l === undefined) {
       // Deleted on the phone but edited on GitHub: keep the edited copy.
-      actions.push({ kind: "download", path, sha: r! });
+      actions.push({ kind: "download", path, sha: r });
     } else if (r === undefined) {
       // Edited on the phone but deleted on GitHub: keep the edited copy.
       actions.push({ kind: "pendingPush", path });

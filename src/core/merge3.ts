@@ -18,5 +18,5 @@ export function mergeText(base: ArrayBuffer, ours: ArrayBuffer, theirs: ArrayBuf
   }
   const { conflict, result } = merge(a.split("\n"), o.split("\n"), b.split("\n"));
   if (conflict) return null;
-  return new TextEncoder().encode(result.join("\n")).buffer as ArrayBuffer;
+  return new TextEncoder().encode(result.join("\n")).buffer;
 }

@@ -1,5 +1,5 @@
 import { App, debounce, Modal, Notice, Platform, Plugin, PluginSettingTab, Setting } from "obsidian";
-import { DEFAULT_EXCLUDES, PathFilter } from "./core/filter.ts";
+import { defaultExcludes, PathFilter } from "./core/filter.ts";
 import { pull } from "./core/pull.ts";
 import { sync, type SyncReport } from "./core/sync.ts";
 import { emptyState, type SyncState } from "./core/types.ts";
@@ -27,7 +27,7 @@ const DEFAULT_SETTINGS: Settings = {
   owner: "WinADuel",
   repo: "Obsidian_Everything",
   branch: "main",
-  excludes: DEFAULT_EXCLUDES,
+  excludes: "",
   maxFileMB: 25,
   maxDeletes: 20,
   pullOnOpen: true,
@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
   allowOnDesktop: false,
 };
 
+// Kept from the plugin's old id so a saved token survives the rename.
 const TOKEN_ID = "obsidian-phone-sync-github-token";
 const EDIT_QUIET_MS = 30_000;
 
@@ -56,7 +57,11 @@ export default class PhoneSyncPlugin extends Plugin {
 
   async onload(): Promise<void> {
     const stored = ((await this.loadData()) ?? {}) as Partial<Stored>;
-    this.settings = { ...DEFAULT_SETTINGS, ...stored.settings };
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      excludes: defaultExcludes(this.app.vault.configDir),
+      ...stored.settings,
+    };
     this.state = stored.state ?? emptyState();
     this.lastReport = stored.lastReport;
 
@@ -131,6 +136,7 @@ export default class PhoneSyncPlugin extends Plugin {
     try {
       const opts = {
         filter: new PathFilter(this.settings.excludes),
+        configDir: this.app.vault.configDir,
         maxFileBytes: this.settings.maxFileMB * 1024 * 1024,
         maxDeletes: this.settings.maxDeletes,
         dryRun: mode === "preview",

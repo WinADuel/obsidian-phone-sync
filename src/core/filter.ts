@@ -5,21 +5,25 @@
 //   *.ext        any file ending in .ext
 // Blank lines and lines starting with # are ignored.
 
-export const DEFAULT_EXCLUDES = [
-  "# Git and Obsidian internals",
-  ".git/",
-  ".trash/",
-  ".obsidian/workspace.json",
-  ".obsidian/workspace-mobile.json",
-  "# This plugin's own settings and sync state stay on this device",
-  ".obsidian/plugins/obsidian-phone-sync/",
-  "# BRAT's settings hold the token it uses to install this plugin",
-  ".obsidian/plugins/obsidian42-brat/data.json",
-  "# Per-device caches",
-  ".DS_Store",
-  ".smart-env/",
-  ".copilot/",
-].join("\n");
+/** The default exclude list for a vault whose config folder is `configDir` (usually `.obsidian`). */
+export function defaultExcludes(configDir: string): string {
+  return [
+    "# Git and Obsidian internals",
+    ".git/",
+    ".trash/",
+    `${configDir}/workspace.json`,
+    `${configDir}/workspace-mobile.json`,
+    "# This plugin's own settings and sync state stay on this device",
+    `${configDir}/plugins/github-phone-sync/`,
+    `${configDir}/plugins/obsidian-phone-sync/`,
+    "# BRAT's settings can hold a GitHub token",
+    `${configDir}/plugins/obsidian42-brat/data.json`,
+    "# Per-device caches",
+    ".DS_Store",
+    ".smart-env/",
+    ".copilot/",
+  ].join("\n");
+}
 
 export class PathFilter {
   private folders: string[] = [];
