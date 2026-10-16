@@ -44,7 +44,7 @@ On the first sync, the new vault's default `.obsidian` settings are replaced by 
 Phone Sync is free and MIT licensed. If it saves you time:
 
 - [Buy me a coffee](BMC_URL)
-- I'm looking for internships and jobs. If you know of a role that fits, I'd love a referral: [Daniel Wu on LinkedIn](LINKEDIN_URL)
+- I'm looking for internships and jobs. If you know of a role that fits, I'd love a referral: [Daniel Wu on LinkedIn](https://www.linkedin.com/in/daniel-wu-778308281)
 
 ## Development
 
