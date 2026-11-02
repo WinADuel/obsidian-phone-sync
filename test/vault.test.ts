@@ -5,7 +5,7 @@
 //   VAULT_REPO=/path/to/vault/checkout npm test
 import { strict as assert } from "node:assert";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -103,6 +103,21 @@ function dirFs(root: string): LocalFs & { trashed: string[] } {
       mkdirSync(dirname(join(root, ".trash", p)), { recursive: true });
       renameSync(join(root, p), join(root, ".trash", p));
       trashed.push(p);
+    },
+    async rename(from, to) {
+      mkdirSync(dirname(join(root, to)), { recursive: true });
+      renameSync(join(root, from), join(root, to));
+      const s = statSync(join(root, to));
+      return { mtime: s.mtimeMs, size: s.size };
+    },
+    async removeEmptyFolders(paths) {
+      const dirs = new Set<string>();
+      for (const p of paths) for (let d = dirname(p); d !== "."; d = dirname(d)) dirs.add(d);
+      for (const d of [...dirs].sort((a, b) => b.length - a.length)) {
+        try {
+          if (readdirSync(join(root, d)).length === 0) rmdirSync(join(root, d));
+        } catch {}
+      }
     },
     async exists(p) {
       try {

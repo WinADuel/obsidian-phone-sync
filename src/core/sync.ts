@@ -32,7 +32,10 @@ export async function sync(remote: Remote, fs: LocalFs, state: SyncState, opts: 
     const report: SyncReport = { ...(await pull(remote, fs, current, { ...opts, saveState })), pushed: [] };
     if (opts.dryRun || report.blocked || report.errors.length || report.toPush.length === 0) return report;
 
-    const deletes = report.toPush.filter((c) => c.sha === null).length;
+    // A file renamed on the phone goes up as a deletion plus an identical new file;
+    // that is a move, not a loss, so it does not count toward the limit.
+    const added = new Set(report.toPush.map((c) => c.sha).filter((sha) => sha !== null));
+    const deletes = report.toPush.filter((c) => c.sha === null && !added.has(current.base[c.path])).length;
     if (deletes > opts.maxDeletes) {
       report.blocked = `This sync would delete ${deletes} files on GitHub, more than the limit of ${opts.maxDeletes}. Nothing was sent.`;
       return report;

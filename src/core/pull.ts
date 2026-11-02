@@ -23,6 +23,8 @@ export interface PullReport {
   dryRun: boolean;
   downloaded: string[];
   deleted: string[];
+  /** Files GitHub moved or renamed, renamed in place on the phone (not deletions). */
+  moved: { from: string; to: string }[];
   /** `sha` is GitHub's version, now saved in `copy`. */
   conflicts: { path: string; copy: string; sha?: string }[];
   /** Phone settings files replaced by GitHub's on the first pull (old copy in trash). */
@@ -97,6 +99,7 @@ export async function pull(
     dryRun: opts.dryRun,
     downloaded: [],
     deleted: [],
+    moved: [],
     conflicts: [],
     replaced: [],
     merged: [],
@@ -134,6 +137,14 @@ export async function pull(
           next.base[a.path] = a.sha;
           next.hashCache[a.path] = { ...stat, sha: a.sha };
           report.downloaded.push(a.path);
+          break;
+        }
+        case "move": {
+          const stat = await fs.rename(a.from, a.path);
+          next.base[a.path] = a.sha;
+          delete next.hashCache[a.from];
+          next.hashCache[a.path] = { ...stat, sha: a.sha };
+          report.moved.push({ from: a.from, to: a.path });
           break;
         }
         case "delete":
@@ -187,6 +198,7 @@ export async function pull(
       report.errors.push({ path: a.path, message: e instanceof Error ? e.message : String(e) });
       // Keep the old base for a failed path so the next pull retries it.
       if (base[a.path] !== undefined && next.base[a.path] === undefined) next.base[a.path] = base[a.path];
+      if (a.kind === "move" && next.base[a.from] === undefined) next.base[a.from] = base[a.from];
     }
   };
 
@@ -196,6 +208,9 @@ export async function pull(
       for (let a = queue.shift(); a; a = queue.shift()) await apply(a);
     }),
   );
+
+  const left = [...report.moved.map((m) => m.from), ...report.deleted];
+  if (left.length) await fs.removeEmptyFolders(left);
 
   if (report.errors.length === 0) {
     next.commit = head.commitSha;
@@ -213,12 +228,14 @@ export async function pull(
     }
   }
   await opts.saveState(next);
+  report.moved.sort((a, b) => (a.to < b.to ? -1 : a.to > b.to ? 1 : 0));
   for (const list of [report.downloaded, report.deleted, report.pendingPush, report.replaced, report.merged]) list.sort();
   return report;
 }
 
 function recordPlanned(report: PullReport, a: PullAction, firstPull: boolean, hasBase: boolean): void {
   if (a.kind === "download") report.downloaded.push(a.path);
+  else if (a.kind === "move") report.moved.push({ from: a.from, to: a.path });
   else if (a.kind === "delete") report.deleted.push(a.path);
   else if (a.kind === "pendingPush") report.pendingPush.push(a.path);
   else {
