@@ -159,3 +159,17 @@ test("mergeText refuses non-text and merges disjoint edits", () => {
   assert.equal(m && text(m), "A\nb\nc\nD\n");
   assert.equal(mergeText(bytes("x"), new Uint8Array([0xff, 0xfe]).buffer as ArrayBuffer, bytes("y")), null);
 });
+
+test("renaming a folder on the phone goes up without tripping the deletion brake", async () => {
+  const { remote, fs, run } = setup();
+  await remote.set({ "Old/a.md": "1", "Old/b.md": "2", "Old/c.md": "3" });
+  await run();
+  for (const name of ["a", "b", "c"]) {
+    const f = fs.files.get(`Old/${name}.md`)!;
+    fs.files.delete(`Old/${name}.md`);
+    fs.files.set(`New/${name}.md`, f);
+  }
+  const r = await run({ maxDeletes: 2 });
+  assert.equal(r.blocked, undefined);
+  assert.deepEqual(remote.snapshot(), { "New/a.md": "1", "New/b.md": "2", "New/c.md": "3" });
+});
