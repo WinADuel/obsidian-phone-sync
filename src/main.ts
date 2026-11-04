@@ -151,7 +151,7 @@ export default class PhoneSyncPlugin extends Plugin {
       notice?.hide();
 
       const needsLook = report.errors.length > 0 || report.conflicts.length > 0 || !!report.blocked;
-      const changed = report.downloaded.length + report.deleted.length + report.pushed.length + report.merged.length > 0;
+      const changed = report.downloaded.length + report.deleted.length + report.moved.length + report.pushed.length + report.merged.length > 0;
       if (!auto || needsLook || changed) new Notice(summarize(report, mode), needsLook ? 0 : 5000);
       if (mode === "preview" || needsLook) new ReportModal(this.app, this.lastReport).open();
     } catch (e) {
@@ -175,6 +175,7 @@ function summarize(r: SyncReport, mode: Mode): string {
   const toSend = preview ? r.pendingPush.length : r.pushed.length;
   const parts = [
     r.downloaded.length && `${plural(r.downloaded.length, "file")} ${preview ? "to download" : "downloaded"}`,
+    r.moved.length && `${plural(r.moved.length, "file")} ${preview ? "to move" : "moved"}`,
     r.deleted.length && `${plural(r.deleted.length, "file")} ${preview ? "to remove" : "removed"}`,
     toSend && `${plural(toSend, "change")} ${preview ? "to send" : "sent"}`,
     r.merged.length && `${plural(r.merged.length, "file")} merged`,
@@ -209,6 +210,7 @@ class ReportModal extends Modal {
     section(preview ? "Would download" : "Downloaded", r.downloaded);
     section(preview ? "Would replace with GitHub's settings" : "Replaced with GitHub's settings (old copy in trash)", r.replaced);
     section(preview ? "Would merge" : "Merged", r.merged);
+    section(preview ? "Would move or rename" : "Moved or renamed", (r.moved ?? []).map((m) => `${m.from} → ${m.to}`));
     section(preview ? "Would move to trash" : "Moved to trash", r.deleted);
     if (preview || r.mode === "pull") section("Changed on this phone, not sent yet", r.pendingPush);
     else section(`Sent to GitHub${r.pushedCommit ? ` (${r.pushedCommit.slice(0, 7)})` : ""}`, r.pushed);

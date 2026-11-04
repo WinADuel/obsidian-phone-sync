@@ -9,6 +9,8 @@ export type PullAction =
   | { kind: "download"; path: string; sha: string }
   /** GitHub deleted it and the phone has not touched it. */
   | { kind: "delete"; path: string }
+  /** GitHub moved or renamed it (same contents at a new path) and the phone has not touched it. */
+  | { kind: "move"; from: string; path: string; sha: string }
   /** Both sides changed it. Keep the phone's copy and save GitHub's next to it. */
   | { kind: "conflict"; path: string; sha: string }
   /** Only the phone changed it (edit, new file or deletion); left for the push step. */
@@ -58,7 +60,39 @@ export function planPull(
       actions.push({ kind: "conflict", path, sha: r });
     }
   }
-  return { actions, same };
+  return { actions: pairMoves(actions, base), same };
+}
+
+/**
+ * A file GitHub deleted at one path and added, with identical contents, at a new
+ * path was moved or renamed. Pair those up so the phone renames its copy instead
+ * of trashing it and downloading it again. Only new paths count, never a file
+ * the phone already has, and each deletion pairs with at most one new path.
+ */
+function pairMoves(actions: PullAction[], base: Record<string, string>): PullAction[] {
+  const newByContent = new Map<string, string[]>();
+  for (const a of actions) {
+    if (a.kind === "download" && base[a.path] === undefined) {
+      const list = newByContent.get(a.sha) ?? [];
+      list.push(a.path);
+      newByContent.set(a.sha, list);
+    }
+  }
+  const movedTo = new Map<string, string>(); // new path -> old path
+  for (const a of actions) {
+    if (a.kind !== "delete") continue;
+    const to = newByContent.get(base[a.path])?.shift();
+    if (to !== undefined) movedTo.set(to, a.path);
+  }
+  const movedFrom = new Set(movedTo.values());
+  const out: PullAction[] = [];
+  for (const a of actions) {
+    if (a.kind === "delete" && movedFrom.has(a.path)) continue;
+    if (a.kind === "download" && movedTo.has(a.path)) {
+      out.push({ kind: "move", from: movedTo.get(a.path)!, path: a.path, sha: a.sha });
+    } else out.push(a);
+  }
+  return out;
 }
 
 /** "Folder/Note.md" -> "Folder/Note (GitHub conflict 2026-10-14).md" */

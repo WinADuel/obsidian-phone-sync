@@ -223,3 +223,56 @@ test("first pull into a fresh vault takes GitHub's settings and merges the plugi
   // The phone-only plugins in the merged list wait to be pushed.
   assert.ok(later.pendingPush.includes(".obsidian/community-plugins.json"));
 });
+
+test("plan turns a GitHub delete plus an identical new file into a move", () => {
+  const plan = planPull(
+    { "old/a.md": "A", "old/b.md": "B", "gone.md": "G", "edited.md": "E" },
+    { "old/a.md": "A", "old/b.md": "B", "gone.md": "G", "edited.md": "E2" },
+    { "new/a.md": "A", "new/b.md": "B", "copy.md": "A", "moved-edit.md": "E" },
+  );
+  const moves = plan.actions.filter((a) => a.kind === "move");
+  assert.deepEqual(
+    moves.map((a) => a.kind === "move" && [a.from, a.path]),
+    [["old/b.md", "new/b.md"], ["old/a.md", "copy.md"]].sort((x, y) => (x[1] < y[1] ? -1 : 1)),
+  );
+  const kinds = Object.fromEntries(plan.actions.map((a) => [a.path, a.kind]));
+  // One deletion pairs with one new path; a second identical file is a plain download.
+  assert.equal(kinds["new/a.md"], "download");
+  assert.equal(kinds["gone.md"], "delete");
+  // A file the phone edited is never moved away under it.
+  assert.equal(kinds["edited.md"], "pendingPush");
+  assert.equal(kinds["moved-edit.md"], "download");
+  assert.equal(kinds["old/a.md"], undefined);
+});
+
+test("a folder reorganized on the desktop is renamed in place and skips the deletion brake", async () => {
+  const { remote, fs, run, state } = setup();
+  await remote.set({ "School/a.md": "1", "School/b.md": "2", "School/c.png": "3", "hi.md": "x" });
+  await run();
+  const readsBefore = remote.blobReads;
+
+  await remote.set({ "School/Q1/a.md": "1", "School/Q1/b.md": "2", "Random/c.png": "3" });
+  const preview = await run({ dryRun: true, maxDeletes: 2 });
+  assert.equal(preview.blocked, undefined);
+  assert.equal(preview.moved.length, 3);
+  assert.deepEqual(preview.deleted, ["hi.md"]);
+  assert.ok(fs.files.has("School/a.md"));
+
+  const r = await run({ maxDeletes: 2 });
+  assert.equal(r.blocked, undefined);
+  assert.deepEqual(r.moved, [
+    { from: "School/c.png", to: "Random/c.png" },
+    { from: "School/a.md", to: "School/Q1/a.md" },
+    { from: "School/b.md", to: "School/Q1/b.md" },
+  ]);
+  assert.deepEqual(r.downloaded, []);
+  assert.deepEqual(r.deleted, ["hi.md"]);
+  assert.deepEqual(fs.trashed, ["hi.md"]);
+  assert.equal(remote.blobReads, readsBefore, "nothing downloaded again");
+  assert.deepEqual([...fs.files.keys()].sort(), ["Random/c.png", "School/Q1/a.md", "School/Q1/b.md"]);
+  assert.deepEqual(Object.keys(state().base).sort(), ["Random/c.png", "School/Q1/a.md", "School/Q1/b.md"]);
+  assert.deepEqual(fs.pruned.sort(), ["School/a.md", "School/b.md", "School/c.png", "hi.md"]);
+
+  const again = await run();
+  assert.deepEqual([again.moved, again.downloaded, again.deleted, again.pendingPush], [[], [], [], []]);
+});
