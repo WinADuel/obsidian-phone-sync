@@ -4,7 +4,7 @@ An Obsidian plugin that keeps the vault on an iPhone in sync with the same GitHu
 
 ## What a sync does
 
-Each sync pulls GitHub's changes, then sends the phone's changes back as one commit (`vault backup (iPhone): <date time>`), which the desktops pick up on their next Obsidian Git pull. It compares three snapshots of every file: what both sides had at the last sync, the phone now, and GitHub now.
+Each sync pulls GitHub's changes, then sends the phone's changes back as one commit (`vault backup (iPhone): <date time>`, or `(iPad)` from an iPad), which the desktops pick up on their next Obsidian Git pull. It compares three snapshots of every file: what both sides had at the last sync, the phone now, and GitHub now.
 
 | Situation | Result |
 | --- | --- |
