@@ -54,7 +54,10 @@ export class FakeRemote implements Remote {
     return out;
   }
 
+  blobReads = 0;
+
   async readBlob(sha: string): Promise<ArrayBuffer> {
+    this.blobReads++;
     if (this.failBlob.has(sha)) throw new Error("network down");
     const b = this.blobs.get(sha);
     if (!b) throw new Error(`no blob ${sha}`);
@@ -98,9 +101,26 @@ export class FakeFs implements LocalFs {
     return { mtime, size: data.byteLength };
   }
 
+  renames: [string, string][] = [];
+
+  async rename(from: string, to: string) {
+    if (this.files.has(to)) throw new Error(`${to} exists`);
+    const f = this.files.get(from)!;
+    this.files.delete(from);
+    this.files.set(to, f);
+    this.renames.push([from, to]);
+    return { mtime: f.mtime, size: f.data.byteLength };
+  }
+
   async trash(path: string): Promise<void> {
     this.files.delete(path);
     this.trashed.push(path);
+  }
+
+  pruned: string[] = [];
+
+  async removeEmptyFolders(filePaths: string[]): Promise<void> {
+    this.pruned.push(...filePaths);
   }
 
   async exists(path: string): Promise<boolean> {

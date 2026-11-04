@@ -48,9 +48,16 @@ export interface LocalFs {
   read(path: string): Promise<ArrayBuffer>;
   /** Write bytes, creating parent folders as needed. Returns the new file's stat. */
   write(path: string, data: ArrayBuffer): Promise<{ mtime: number; size: number }>;
+  /** Move or rename a file, creating the new parent folders as needed. `to` must not exist. */
+  rename(from: string, to: string): Promise<{ mtime: number; size: number }>;
   /** Move a file somewhere recoverable instead of deleting it outright. */
   trash(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
+  /**
+   * Remove folders left empty after these files moved or went to the trash. Git has
+   * no empty folders, so on the desktops those folders are already gone.
+   */
+  removeEmptyFolders(filePaths: string[]): Promise<void>;
 }
 
 /** What the phone remembers between syncs. */
