@@ -1,4 +1,5 @@
 import { gitBlobSha } from "./hash.ts";
+import { isDrawing, mergeDrawing } from "./excalidraw.ts";
 import { mergeText } from "./merge3.ts";
 import { PathFilter } from "./filter.ts";
 import { conflictCopyPath, planPull, type PullAction } from "./plan.ts";
@@ -154,11 +155,29 @@ export async function pull(
           break;
         case "conflict": {
           const theirs = await remote.readBlob(a.sha);
-          const how = conflictStrategy(a.path, firstPull, base[a.path] !== undefined);
-          // If the base version can't be fetched, fall back to a conflict copy.
-          const baseData = how === "merge3" ? await remote.readBlob(base[a.path]).catch(() => null) : null;
-          const merged3 = baseData ? mergeText(baseData, await fs.read(a.path), theirs) : null;
-          if (merged3) {
+          const ours = await fs.read(a.path);
+          let how: ReturnType<typeof conflictStrategy> | "drawing" = conflictStrategy(a.path, firstPull, base[a.path] !== undefined);
+          // Excalidraw drawings are never merged line by line: that can splice two
+          // compressed scenes into one Excalidraw can't open. Merge their elements instead.
+          if ((how === "merge3" || how === "copy") && isDrawing(a.path, ours)) how = "drawing";
+          // If the base version can't be fetched, merge without it or fall back to a conflict copy.
+          const baseData =
+            (how === "merge3" || how === "drawing") && base[a.path] !== undefined
+              ? await remote.readBlob(base[a.path]).catch(() => null)
+              : null;
+          const merged3 = how === "merge3" && baseData ? mergeText(baseData, ours, theirs) : null;
+          const drawing = how === "drawing" ? mergeDrawing(baseData, ours, theirs) : null;
+          if (drawing?.kind === "keepOurs") {
+            // Their side only holds what this drawing already has (often just Excalidraw
+            // re-saving it): leave the open drawing alone and send it up as it is.
+            next.base[a.path] = a.sha;
+            report.merged.push(a.path);
+          } else if (drawing?.kind === "merged") {
+            const stat = await fs.write(a.path, drawing.data);
+            next.base[a.path] = a.sha;
+            next.hashCache[a.path] = { ...stat, sha: await gitBlobSha(drawing.data) };
+            report.merged.push(a.path);
+          } else if (merged3) {
             const stat = await fs.write(a.path, merged3);
             // GitHub's version is the new base; the merged result goes up with the push.
             next.base[a.path] = a.sha;
