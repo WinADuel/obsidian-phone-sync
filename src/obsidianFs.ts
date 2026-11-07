@@ -1,11 +1,15 @@
-import { normalizePath, type DataAdapter } from "obsidian";
+import { normalizePath, TFile, type DataAdapter, type Vault } from "obsidian";
 import type { LocalFileStat, LocalFs } from "./core/types.ts";
 
 // The vault through Obsidian's DataAdapter. The adapter (unlike vault.getFiles)
 // also sees dot-folders such as .obsidian, which is where plugins live.
 
 export class ObsidianFs implements LocalFs {
-  constructor(private adapter: DataAdapter) {}
+  private adapter: DataAdapter;
+
+  constructor(private vault: Vault) {
+    this.adapter = vault.adapter;
+  }
 
   async list(skipDir: (dirPath: string) => boolean): Promise<LocalFileStat[]> {
     const out: LocalFileStat[] = [];
@@ -32,8 +36,15 @@ export class ObsidianFs implements LocalFs {
 
   async write(path: string, data: ArrayBuffer): Promise<{ mtime: number; size: number }> {
     path = normalizePath(path);
-    await this.makeParents(path);
-    await this.adapter.writeBinary(path, data);
+    const open = this.vault.getAbstractFileByPath(path);
+    if (open instanceof TFile) {
+      // Through the vault, so open views hear about it: Excalidraw folds the new
+      // version into a drawing you have open instead of saving over it.
+      await this.vault.modifyBinary(open, data);
+    } else {
+      await this.makeParents(path);
+      await this.adapter.writeBinary(path, data);
+    }
     const stat = await this.adapter.stat(path);
     return { mtime: stat?.mtime ?? Date.now(), size: stat?.size ?? data.byteLength };
   }

@@ -135,13 +135,13 @@ export default class PhoneSyncPlugin extends Plugin {
         maxDeletes: this.settings.maxDeletes,
         dryRun: mode === "preview",
         today: localDate(new Date()),
-        message: `vault backup (iPhone): ${localDate(new Date())} ${new Date().toTimeString().slice(0, 8)}`,
+        message: `vault backup (${deviceName()}): ${localDate(new Date())} ${new Date().toTimeString().slice(0, 8)}`,
         saveState: async (s: SyncState) => {
           this.state = s;
           await this.persist();
         },
       };
-      const fs = new ObsidianFs(this.app.vault.adapter);
+      const fs = new ObsidianFs(this.app.vault);
       const report: SyncReport =
         mode === "pull"
           ? { ...(await pull(this.remote(), fs, this.state, opts)), pushed: [] }
@@ -161,6 +161,13 @@ export default class PhoneSyncPlugin extends Plugin {
       this.running = false;
     }
   }
+}
+
+/** Names the device in commit messages, so pushes from the iPhone and iPad can be told apart. */
+function deviceName(): string {
+  if (Platform.isIosApp) return Platform.isTablet ? "iPad" : "iPhone";
+  if (Platform.isAndroidApp) return Platform.isTablet ? "Android tablet" : "Android phone";
+  return "desktop";
 }
 
 function localDate(d: Date): string {

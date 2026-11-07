@@ -4,7 +4,7 @@ An Obsidian plugin that keeps the vault on an iPhone in sync with the same GitHu
 
 ## What a sync does
 
-Each sync pulls GitHub's changes, then sends the phone's changes back as one commit (`vault backup (iPhone): <date time>`), which the desktops pick up on their next Obsidian Git pull. It compares three snapshots of every file: what both sides had at the last sync, the phone now, and GitHub now.
+Each sync pulls GitHub's changes, then sends the phone's changes back as one commit (`vault backup (iPhone): <date time>`, or `(iPad)` from an iPad), which the desktops pick up on their next Obsidian Git pull. It compares three snapshots of every file: what both sides had at the last sync, the phone now, and GitHub now.
 
 | Situation | Result |
 | --- | --- |
@@ -12,6 +12,7 @@ Each sync pulls GitHub's changes, then sends the phone's changes back as one com
 | Deleted on GitHub, untouched on the phone | Moved to the vault's `.trash` folder |
 | Changed, added or deleted only on the phone | Sent to GitHub |
 | A note (`.md`) changed on both, different lines | Merged line by line, result sent to GitHub |
+| An Excalidraw drawing changed on both | Merged stroke by stroke (newer version of each element wins), result sent to GitHub. If GitHub's side only re-saved what the phone already has, the phone's file is left as it is |
 | Changed on both, same lines (or not a note) | Phone copy kept; GitHub's saved beside it as `Note (GitHub conflict 2026-10-14).md`; both sent |
 
 Nothing the phone changed is overwritten, and the phone never force-pushes: if a desktop pushes mid-sync, the phone pulls that first and retries. A sync that would delete more than 20 files on either side stops and changes nothing. **Preview sync** in the command palette shows what would happen without doing it; **Pull from GitHub only** never sends anything.
