@@ -135,7 +135,7 @@ export default class PhoneSyncPlugin extends Plugin {
         maxDeletes: this.settings.maxDeletes,
         dryRun: mode === "preview",
         today: localDate(new Date()),
-        message: `vault backup (iPhone): ${localDate(new Date())} ${new Date().toTimeString().slice(0, 8)}`,
+        message: `vault backup (${deviceLabel()}): ${localDate(new Date())} ${new Date().toTimeString().slice(0, 8)}`,
         saveState: async (s: SyncState) => {
           this.state = s;
           await this.persist();
@@ -353,4 +353,11 @@ class PhoneSyncSettingTab extends PluginSettingTab {
         }),
       );
   }
+}
+
+/** Names the device in commit messages, so iPad and iPhone commits can be told apart. */
+function deviceLabel(): string {
+  if (Platform.isTablet) return "iPad";
+  if (Platform.isPhone) return "iPhone";
+  return "desktop";
 }
